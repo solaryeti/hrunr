@@ -1,0 +1,56 @@
+name:                hrunr
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            http://github.com/name/project
+license:             BSD3
+license-file:        LICENSE
+author:              Steven Meunier
+maintainer:          steven@solaryeti.com
+-- copyright:
+category:            Web
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  ghc-options:         -Wall
+  exposed-modules:     Rundeck.Call
+                     , Rundeck.Urls
+  build-depends:       base >= 4.7 && < 5
+                     , wreq
+                     , bytestring
+                     , lens
+
+  default-language:    Haskell2010
+
+executable hrunr
+  hs-source-dirs:      src/main
+  main-is:             Main.hs
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , hrunr
+                     , aeson
+                     , bytestring
+                     , containers
+                     , lens
+                     , lens-aeson
+                     , text
+                     , wreq
+                     , xml-conduit
+                     , cmdargs
+  default-language:    Haskell2010
+
+test-suite hrunr-test
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base
+                     , hrunr
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+-- source-repository head
+--   type:     git
+--   location: https://github.com/name/project
