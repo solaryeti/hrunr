@@ -1,11 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Rundeck.Call
-       (exportJobs
+       (apiGet
        ,jobExecutions
-       ,jobs
-       ,projects
-       ,systemInfo
-       ,tokens
+       ,ApiCall(..)
+       ,RundeckResponse
        ) where
 
 import Rundeck.Urls
@@ -14,8 +12,18 @@ import           Network.Wreq
 import qualified Data.ByteString.Lazy as L
 import           Control.Lens ((.~), (&))
 
-
 data Request = Get | Post
+type RundeckResponse = (Response L.ByteString)
+
+data ApiCall = SystemInfo
+             | Projects
+             | ExportJobs
+             | Tokens
+             | Jobs
+             deriving (Show, Eq)
+
+url :: String -> String -> String
+url host port = "http://" ++ host ++ ":" ++ port
 
 opts :: Options
 opts = defaults & param "authtoken"     .~ ["x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e"]
@@ -23,24 +31,13 @@ opts = defaults & param "authtoken"     .~ ["x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e"]
                 & header "Accept"       .~ ["application/json"]
                 & header "Content-Type" .~ ["application/json"]
 
-
-exportJobs :: IO (Response L.ByteString)
-exportJobs = getWith opts exportUrl
-
--- importJobs :: IO (Response L.ByteString)
--- importJobs = postWith opts exportUrl
-
-tokens :: IO (Response L.ByteString)
-tokens = getWith opts tokensUrl
-
-systemInfo :: IO (Response L.ByteString)
-systemInfo = getWith opts systemInfoUrl
-
-projects :: IO (Response L.ByteString)
-projects = getWith opts projectsUrl
-
-jobs :: IO (Response L.ByteString)
-jobs = getWith opts jobsUrl
+apiGet :: ApiCall -> String -> String -> IO (Response L.ByteString)
+apiGet a h p = getWith opts $ (url h p) ++ apiurl a
+  where apiurl SystemInfo = systemInfoUrl
+        apiurl Projects = projectsUrl
+        apiurl Tokens = tokensUrl
+        apiurl ExportJobs = exportUrl
+        apiurl Jobs = jobsUrl
 
 jobExecutions :: Request -> Id -> IO (Response L.ByteString)
 jobExecutions Get i = getWith opts $ jobExecutionsUrl i

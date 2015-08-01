@@ -27,3 +27,14 @@
 -- Working with json traversal
 -- r <- getWith opts $ url ++ projects
 -- r ^. responseBody ^.. values . key "name" . _String
+
+
+
+-- rundeckVersion :: IO T.Text
+-- rundeckVersion = do
+--   r <- systemInfo
+--   let x = decodeUtf8 $ r ^. responseBody
+--   let doc = parseText_ def x
+--   let cursor = fromDocument doc
+--   return $ T.concat $ versionContent cursor
+--   where versionContent c = c $/ element "system" &/ element "rundeck" &/ element "version" &// content
