@@ -42,15 +42,13 @@ opts token = defaults
     -- & header "Content-Type" .~ ["application/json"]
 
 apiGet :: ApiCall -> Conninfo -> IO (Response L.ByteString)
-apiGet a c = getWith (opts $ authtoken c) $ (url h p) ++ apiurl a
-  where h = host c
-        p = port c
-        apiurl SystemInfo = systemInfoUrl
+apiGet a (Conninfo h p token) = getWith (opts token) $ url h p ++ apiurl a
+  where apiurl SystemInfo = systemInfoUrl
         apiurl Projects = projectsUrl
         apiurl Tokens = tokensUrl
         apiurl ExportJobs = exportUrl
         apiurl Jobs = jobsUrl
 
 jobExecutions :: Conninfo -> Method -> Id -> IO (Response L.ByteString)
-jobExecutions c Get i = getWith (opts $ authtoken c) $ (url (host c) (port c)) ++ jobExecutionsUrl i
-jobExecutions c Post i = postWith (opts $ authtoken c) ((url (host c) (port c)) ++ jobExecutionsUrl i) [partText "loglevel" "INFO"]
+jobExecutions (Conninfo h p token) Get i = getWith (opts token) $ url h p ++ jobExecutionsUrl i
+jobExecutions (Conninfo h p token) Post i = postWith (opts token) (url h p ++ jobExecutionsUrl i) [partText "loglevel" "INFO"]
