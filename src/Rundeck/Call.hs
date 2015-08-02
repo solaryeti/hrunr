@@ -39,10 +39,6 @@ url h p = "http://" ++ h ++ ":" ++ p
 
 opts :: Params -> Options
 opts params = defaults & paramList params
-    -- & param "authtoken"     .~ [pack token]
-    -- & param "project"       .~ ["local"]
-    -- & header "Accept"       .~ ["application/json"]
-    -- & header "Content-Type" .~ ["application/json"]
 
 paramList :: Params -> Options -> Options
 paramList [] = param "" .~ []

@@ -1,34 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveDataTypeable #-}
--- {-# LANGUAGE TypeSynonymInstances #-}
 {-# OPTIONS_GHC -Wall #-}
--- :set -XOverloadedStrings
+
 module Main where
 
 import qualified Rundeck.Call as RC
-import Rundeck.Call ()  -- import instances
+import           Rundeck.Call ()  -- import instances
 
-import Prelude hiding (id)
-import Options
-import Control.Applicative
---import System.Console.CmdArgs
-
--- import qualified Data.Text as T
--- import Data.Map as Map
--- import Data.Aeson (Value)
--- import Data.Aeson.Lens
+import           Prelude hiding (id)
+import           Options
+import           Control.Applicative
 import qualified Network.Wreq as W
 import           Control.Lens ((^.))
 import           Data.Text (pack)
--- import           Data.Text.Lazy.Encoding  (decodeUtf8)
--- import           Text.XML (parseText_, def)
--- import           Text.XML.Cursor (content, element, fromDocument, (&/), (&//), ($/))
-
--- this is an orphan instance. Maybe we should just pack all our params?
--- instance SimpleOptionType Text where
---         simpleOptionType = optionType "text" "" (Right . pack) (show . unpack)
-
--- | Setup our commandline arguments
 
 data MainOptions = MainOptions
     { host :: String
@@ -50,7 +34,6 @@ instance Options MainOptions where
               , optionDefault = "local"
               , optionGroup = Just $ group "param" "Params" ""
               })
-
 
 data NoSubOptions = NoSubOptions
 instance Options NoSubOptions where
