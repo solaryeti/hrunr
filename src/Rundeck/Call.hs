@@ -1,9 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Rundeck.Call
-       (apiGet
-       ,jobExecutions
-       ,ApiCall(..)
-       ,RundeckResponse
+       ( apiGet
+       , jobExecutions
+       , ApiCall(..)
+       , RundeckResponse
+       , Conninfo(..)
+       , Method(..)
        ) where
 
 import Rundeck.Urls
@@ -11,9 +13,16 @@ import Rundeck.Urls
 import           Network.Wreq
 import qualified Data.ByteString.Lazy as L
 import           Control.Lens ((.~), (&))
+import           Data.Text (pack)
 
-data Method = Get | Post | Put | Delete
+data Method = Get | Post -- | Put | Delete
 type RundeckResponse = (Response L.ByteString)
+
+data Conninfo = Conninfo
+    { host :: String
+    , port :: String
+    , authtoken :: String
+    }
 
 data ApiCall = SystemInfo
              | Projects
@@ -23,22 +32,25 @@ data ApiCall = SystemInfo
              deriving (Show, Eq)
 
 url :: String -> String -> String
-url host port = "http://" ++ host ++ ":" ++ port
+url h p = "http://" ++ h ++ ":" ++ p
 
-opts :: Options
-opts = defaults & param "authtoken"     .~ ["x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e"]
-                & param "project"       .~ ["local"]
-                & header "Accept"       .~ ["application/json"]
-                & header "Content-Type" .~ ["application/json"]
+opts :: String -> Options
+opts token = defaults
+    & param "authtoken"     .~ [pack token]
+    & param "project"       .~ ["local"]
+    -- & header "Accept"       .~ ["application/json"]
+    -- & header "Content-Type" .~ ["application/json"]
 
-apiGet :: ApiCall -> String -> String -> IO (Response L.ByteString)
-apiGet a h p = getWith opts $ (url h p) ++ apiurl a
-  where apiurl SystemInfo = systemInfoUrl
+apiGet :: ApiCall -> Conninfo -> IO (Response L.ByteString)
+apiGet a c = getWith (opts $ authtoken c) $ (url h p) ++ apiurl a
+  where h = host c
+        p = port c
+        apiurl SystemInfo = systemInfoUrl
         apiurl Projects = projectsUrl
         apiurl Tokens = tokensUrl
         apiurl ExportJobs = exportUrl
         apiurl Jobs = jobsUrl
 
-jobExecutions :: Method -> Id -> IO (Response L.ByteString)
-jobExecutions Get i = getWith opts $ jobExecutionsUrl i
-jobExecutions Post i = postWith opts (jobExecutionsUrl i) [partText "loglevel" "INFO"]
+jobExecutions :: Conninfo -> Method -> Id -> IO (Response L.ByteString)
+jobExecutions c Get i = getWith (opts $ authtoken c) $ (url (host c) (port c)) ++ jobExecutionsUrl i
+jobExecutions c Post i = postWith (opts $ authtoken c) ((url (host c) (port c)) ++ jobExecutionsUrl i) [partText "loglevel" "INFO"]
