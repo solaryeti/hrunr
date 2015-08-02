@@ -6,22 +6,25 @@ module Rundeck.Call
        , RundeckResponse
        , Conninfo(..)
        , Method(..)
+       , Params
        ) where
 
 import Rundeck.Urls
 
-import           Network.Wreq
+import           Network.Wreq hiding (params)
 import qualified Data.ByteString.Lazy as L
 import           Control.Lens ((.~), (&))
-import           Data.Text (pack)
+import           Data.Text (Text)
 
 data Method = Get | Post -- | Put | Delete
 type RundeckResponse = (Response L.ByteString)
 
+type Param = (Text, [Text])
+type Params = [Param]
+
 data Conninfo = Conninfo
     { host :: String
     , port :: String
-    , authtoken :: String
     }
 
 data ApiCall = SystemInfo
@@ -34,21 +37,26 @@ data ApiCall = SystemInfo
 url :: String -> String -> String
 url h p = "http://" ++ h ++ ":" ++ p
 
-opts :: String -> Options
-opts token = defaults
-    & param "authtoken"     .~ [pack token]
-    & param "project"       .~ ["local"]
+opts :: Params -> Options
+opts params = defaults & paramList params
+    -- & param "authtoken"     .~ [pack token]
+    -- & param "project"       .~ ["local"]
     -- & header "Accept"       .~ ["application/json"]
     -- & header "Content-Type" .~ ["application/json"]
 
-apiGet :: ApiCall -> Conninfo -> IO (Response L.ByteString)
-apiGet a (Conninfo h p token) = getWith (opts token) $ url h p ++ apiurl a
+paramList :: Params -> Options -> Options
+paramList [] = param "" .~ []
+paramList [(x, xs)] = param x .~ xs
+paramList ((x, xs):xss) = fmap (param x .~ xs) $ paramList xss
+
+apiGet :: ApiCall -> Conninfo -> Params -> IO (Response L.ByteString)
+apiGet a (Conninfo h p) params = getWith (opts params) $ url h p ++ apiurl a
   where apiurl SystemInfo = systemInfoUrl
         apiurl Projects = projectsUrl
         apiurl Tokens = tokensUrl
         apiurl ExportJobs = exportUrl
         apiurl Jobs = jobsUrl
 
-jobExecutions :: Conninfo -> Method -> Id -> IO (Response L.ByteString)
-jobExecutions (Conninfo h p token) Get i = getWith (opts token) $ url h p ++ jobExecutionsUrl i
-jobExecutions (Conninfo h p token) Post i = postWith (opts token) (url h p ++ jobExecutionsUrl i) [partText "loglevel" "INFO"]
+jobExecutions :: Conninfo -> Params -> Method -> Id -> IO (Response L.ByteString)
+jobExecutions (Conninfo h p) params Get i = getWith (opts params) $ url h p ++ jobExecutionsUrl i
+jobExecutions (Conninfo h p) params Post i = postWith (opts params) (url h p ++ jobExecutionsUrl i) [partText "loglevel" "INFO"]

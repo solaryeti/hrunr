@@ -19,9 +19,14 @@ import Control.Applicative
 -- import Data.Aeson.Lens
 import qualified Network.Wreq as W
 import           Control.Lens ((^.))
+import           Data.Text (pack)
 -- import           Data.Text.Lazy.Encoding  (decodeUtf8)
 -- import           Text.XML (parseText_, def)
 -- import           Text.XML.Cursor (content, element, fromDocument, (&/), (&//), ($/))
+
+-- this is an orphan instance. Maybe we should just pack all our params?
+-- instance SimpleOptionType Text where
+--         simpleOptionType = optionType "text" "" (Right . pack) (show . unpack)
 
 -- | Setup our commandline arguments
 
@@ -29,12 +34,23 @@ data MainOptions = MainOptions
     { host :: String
     , port :: String
     , authtoken :: String
+    , project :: String
     }
 instance Options MainOptions where
   defineOptions = pure MainOptions
       <*> simpleOption "host" "192.168.56.2" "Rundeck host"
       <*> simpleOption "port" "4440" "Rundeck port"
-      <*> simpleOption "authtoken" "x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e" "Authtoken for authentication"
+      <*> defineOption optionType_string (\o -> o
+              { optionLongFlags = ["authtoken"]
+              , optionDefault = "x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e"
+              , optionGroup = Just $ group "param" "Params" ""
+              })
+      <*> defineOption optionType_string (\o -> o
+              { optionLongFlags = ["project"]
+              , optionDefault = "local"
+              , optionGroup = Just $ group "param" "Params" ""
+              })
+
 
 data NoSubOptions = NoSubOptions
 instance Options NoSubOptions where
@@ -46,7 +62,13 @@ instance Options RunJobOptions where
       <*> simpleOption "id" "" "Job to run"
 
 conninfo :: MainOptions -> RC.Conninfo
-conninfo mainOpts = RC.Conninfo (host mainOpts) (port mainOpts) (authtoken mainOpts)
+conninfo mainOpts = RC.Conninfo (host mainOpts) (port mainOpts)
+
+params :: RC.ApiCall -> MainOptions -> RC.Params
+params call mainOpts
+  | call `elem` [RC.Jobs, RC.ExportJobs] =  [("authtoken", [(pack $ authtoken mainOpts)])
+                                            ,("project", [(pack $ project mainOpts)])]
+  | otherwise = [("authtoken", [(pack $ authtoken mainOpts)])]
 
 main :: IO ()
 main = runSubcommand [ subcommand "system-info" $ simpleRun RC.SystemInfo
@@ -59,10 +81,10 @@ main = runSubcommand [ subcommand "system-info" $ simpleRun RC.SystemInfo
 
 simpleRun :: RC.ApiCall -> MainOptions -> NoSubOptions -> [String] -> IO ()
 simpleRun call mainOpts _ _ = do
-  r <- RC.apiGet call $ conninfo mainOpts
+  r <- RC.apiGet call (conninfo mainOpts) (params call mainOpts)
   print $ r ^. W.responseBody
 
 runjob :: MainOptions -> RunJobOptions -> [String] -> IO ()
 runjob mainOpts opts _ = do
-  r <- RC.jobExecutions (conninfo mainOpts) RC.Post (id opts)
+  r <- RC.jobExecutions (conninfo mainOpts) [("authtoken", [(pack $ authtoken mainOpts)])] RC.Post (id opts)
   print $ r ^. W.responseBody
