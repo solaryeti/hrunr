@@ -12,7 +12,7 @@ import           Network.Wreq
 import qualified Data.ByteString.Lazy as L
 import           Control.Lens ((.~), (&))
 
-data Request = Get | Post
+data Method = Get | Post | Put | Delete
 type RundeckResponse = (Response L.ByteString)
 
 data ApiCall = SystemInfo
@@ -39,6 +39,6 @@ apiGet a h p = getWith opts $ (url h p) ++ apiurl a
         apiurl ExportJobs = exportUrl
         apiurl Jobs = jobsUrl
 
-jobExecutions :: Request -> Id -> IO (Response L.ByteString)
+jobExecutions :: Method -> Id -> IO (Response L.ByteString)
 jobExecutions Get i = getWith opts $ jobExecutionsUrl i
 jobExecutions Post i = postWith opts (jobExecutionsUrl i) [partText "loglevel" "INFO"]
