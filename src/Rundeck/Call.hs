@@ -2,6 +2,7 @@
 module Rundeck.Call
        ( apiGet
        , jobExecutions
+       , executionOutput
        , ApiCall(..)
        , RundeckResponse
        , Conninfo(..)
@@ -32,6 +33,8 @@ data ApiCall = SystemInfo
              | ExportJobs
              | Tokens
              | Jobs
+             | ExecutionOutput
+             | JobExecutions
              deriving (Show, Eq)
 
 url :: String -> String -> String
@@ -52,7 +55,11 @@ apiGet a (Conninfo h p) params = getWith (opts params) $ url h p ++ apiurl a
         apiurl Tokens = tokensUrl
         apiurl ExportJobs = exportUrl
         apiurl Jobs = jobsUrl
+        apiurl _ = "/"  -- TODO: tidy up, this is a hack just to make it exhaustive
 
 jobExecutions :: Conninfo -> Params -> Method -> Id -> IO (Response L.ByteString)
 jobExecutions (Conninfo h p) params Get i = getWith (opts params) $ url h p ++ jobExecutionsUrl i
 jobExecutions (Conninfo h p) params Post i = postWith (opts params) (url h p ++ jobExecutionsUrl i) [partText "loglevel" "INFO"]
+
+executionOutput ::Conninfo -> Params -> Id -> IO (Response L.ByteString)
+executionOutput (Conninfo h p) params i = getWith (opts params) $ url h p ++ executionOutputUrl i

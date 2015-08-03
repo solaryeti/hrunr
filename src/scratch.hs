@@ -45,6 +45,10 @@
 -- r ^. responseBody ^.. values . key "name" . _String
 
 
+-- xml
+-- import           Data.Text.Lazy.Encoding  (decodeUtf8)
+-- import           Text.XML (parseText_, def)
+-- import           Text.XML.Cursor (content, element, fromDocument, (&/), (&//), ($/))
 
 -- rundeckVersion :: IO T.Text
 -- rundeckVersion = do
@@ -58,10 +62,6 @@
 
 
 
--- xml
--- import           Data.Text.Lazy.Encoding  (decodeUtf8)
--- import           Text.XML (parseText_, def)
--- import           Text.XML.Cursor (content, element, fromDocument, (&/), (&//), ($/))
 
 
     -- & param "authtoken"     .~ [pack token]

@@ -1,13 +1,14 @@
 module Rundeck.Urls
-       (exportUrl
-       ,importUrl
-       ,tokenUrl
-       ,tokensUrl
-       ,projectsUrl
-       ,jobsUrl
-       ,projectJobsUrl
-       ,systemInfoUrl
-       ,jobExecutionsUrl
+       ( exportUrl
+       , importUrl
+       , tokenUrl
+       , tokensUrl
+       , projectsUrl
+       , jobsUrl
+       , projectJobsUrl
+       , systemInfoUrl
+       , jobExecutionsUrl
+       , executionOutputUrl
        , Id
        ) where
 
@@ -40,3 +41,6 @@ systemInfoUrl = "/api/2/system/info"
 
 jobExecutionsUrl :: Id -> ApiUrl
 jobExecutionsUrl i = "/api/12/job/" ++ i ++ "/executions"
+
+executionOutputUrl :: Id -> ApiUrl
+executionOutputUrl i = "/api/5/execution/" ++ i ++ "/output"
