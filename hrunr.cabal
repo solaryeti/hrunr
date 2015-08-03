@@ -18,12 +18,14 @@ library
   ghc-options:         -Wall
   exposed-modules:     Rundeck.Call
                      , Rundeck.Urls
+                     , Rundeck.Xml
   build-depends:       base >= 4.7 && < 5
                      , wreq
                      , bytestring
                      , lens
                      , text
-
+                     , xml-conduit
+                     , xml-types
   default-language:    Haskell2010
 
 executable hrunr
@@ -39,8 +41,6 @@ executable hrunr
                      , lens-aeson
                      , text
                      , wreq
-                     , xml-conduit
-                     -- , cmdargs
                      , options
   default-language:    Haskell2010
 

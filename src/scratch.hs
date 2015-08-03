@@ -68,3 +68,52 @@
     -- & param "project"       .~ ["local"]
     -- & header "Accept"       .~ ["application/json"]
     -- & header "Content-Type" .~ ["application/json"]
+
+
+
+  -- if format=json (default)
+  -- let body = r ^. W.responseBody
+  -- return . L.fromStrict . TE.encodeUtf8 $ entries r
+  -- where offset r = r ^. W.responseBody . key "offset" . _String
+  --       completed r = r ^. W.responseBody . key "completed" . _String
+  --       entries r = r ^. W.responseBody . key "entries" . _String
+
+  -- if format=xml (default)
+  -- let body = decodeUtf8 $ r ^. W.responseBody
+  -- let doc = parseText_ def body
+  -- let cursor = fromDocument doc
+  -- return . L.fromStrict . TE.encodeUtf8 $ T.concat $ entries cursor
+  --   where offset c = c $/ element "output" &/ element "offset" &// content
+  --         completed c = c $/ element "output" &/ element "completed" &// content
+  --         entries c = c $/ element "output" &/ element "entries" &// content
+
+
+
+
+{-
+<result success='true' apiversion='13'>
+    <output>
+      <id>13</id>
+      <offset>430</offset>
+      <completed>true</completed>
+      <execCompleted>true</execCompleted>
+      <hasFailedNodes>false</hasFailedNodes>
+      <execState>succeeded</execState>
+      <lastModified>1438538885000</lastModified>
+      <execDuration>2551</execDuration>
+      <percentLoaded>98.62385321100918</percentLoaded>
+      <totalSize>436</totalSize>
+      <entries>
+        <entry time='18:08:04' absolute_time='2015-08-02T18:08:04Z' level='NORMAL' user='rundeck' command='' stepctx='1' node='localhost'>hello world</entry>
+   </entries>
+  </output>
+</result>
+-}
+
+
+
+-- for repl
+-- mainopts = MainOptions "192.168.56.2" "4440" "x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e" "local"
+-- eoopts = ExecutionOutputOptions "15" False
+-- Main.executionOutput RC.ExecutionOutput mainopts eoopts [""]
+-- r <- RC.executionOutput (conninfo mainopts) (params RC.ExecutionOutput mainopts) (eoId eoopts)

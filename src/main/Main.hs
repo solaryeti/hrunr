@@ -7,6 +7,7 @@ module Main where
 -- Rundeck Libraries
 import qualified Rundeck.Call as RC
 import           Rundeck.Call ()  -- import instances
+import           Rundeck.Xml
 
 -- For CLI options
 import           Options
@@ -16,10 +17,6 @@ import qualified Network.Wreq as W
 import           Control.Lens ((^.))
 import           Data.Text (pack)
 
--- For XML processing
-import           Data.Text.Lazy.Encoding  (decodeUtf8)
-import           Text.XML (parseText_, def)
-import           Text.XML.Cursor (content, element, fromDocument, (&/), (&//), ($/))
 
 -- For JSON processing
 -- import           Data.Aeson.Lens (key, _String, _Bool)
@@ -27,11 +24,10 @@ import           Text.XML.Cursor (content, element, fromDocument, (&/), (&//), (
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI (putStr)
 import qualified Data.Text.Encoding as TE
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy as L (fromStrict, ByteString)
 
 import           Control.Concurrent (threadDelay)
 
-import Data.Aeson.Lens (key)
 data MainOptions = MainOptions
     { host :: String
     , port :: String
@@ -102,86 +98,19 @@ runjob call mainOpts opts _ = do
   r <- RC.jobExecutions (conninfo mainOpts) (params call mainOpts) RC.Post (rjId opts)
   return $ r ^. W.responseBody
 
--- executionOutput :: RC.ApiCall -> MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
--- executionOutput call mainOpts opts _ = do
---    r <- RC.executionOutput (conninfo mainOpts) (params call mainOpts) (eoId opts)
---    return $ r ^. W.responseBody
-
 executionOutput :: RC.ApiCall -> MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 executionOutput call mainOpts opts _ = go "0"
-    where go offset = do
-            -- TI.putStr offset
-            r <- RC.executionOutput (conninfo mainOpts) (("offset", [offset]) : params call mainOpts) (eoId opts)
-            let body = decodeUtf8 $ r ^. W.responseBody
-            let doc = parseText_ def body
-            let cursor = fromDocument doc
-            if (completed cursor) == "true"
-              then return . L.fromStrict . TE.encodeUtf8 $ entries cursor
-              else do
-                TI.putStr (entries cursor)
-                threadDelay $ 2 * 1000000  -- 2 seconds
-                -- hacky way to get offset as num: See Data.Text.Read
-                go . T.pack $ show ((offsetnum cursor) - 1)
+  where go offset = do
+          r <- RC.executionOutput (conninfo mainOpts) (("offset", [offset]) : params call mainOpts) (eoId opts)
+          let cursor = responseBodyCursor $ r ^. W.responseBody
 
-            where
-              offsetnum c = read . T.unpack $ dataoffset c :: Int
-              dataoffset c = T.concat $ c $/ element "output" &/ element "offset" &// content
-              completed c = T.concat $ c $/ element "output" &/ element "completed" &// content
-              entries c = T.concat $ c $/ element "output" &/ element "entries" &// content
+          -- hacky way to get offset as num: See Data.Text.Read
+          -- we have to decrement the offset by one or else rundeck give a fault
+          let safeOffset = T.pack . show $ (read . T.unpack $ outputContent cursor "offset" :: Int) - 1
 
-  -- if format=json (default)
-  -- let body = r ^. W.responseBody
-  -- return . L.fromStrict . TE.encodeUtf8 $ entries r
-  -- where offset r = r ^. W.responseBody . key "offset" . _String
-  --       completed r = r ^. W.responseBody . key "completed" . _String
-  --       entries r = r ^. W.responseBody . key "entries" . _String
-
-  -- if format=xml (default)
-  -- let body = decodeUtf8 $ r ^. W.responseBody
-  -- let doc = parseText_ def body
-  -- let cursor = fromDocument doc
-  -- return . L.fromStrict . TE.encodeUtf8 $ T.concat $ entries cursor
-  --   where offset c = c $/ element "output" &/ element "offset" &// content
-  --         completed c = c $/ element "output" &/ element "completed" &// content
-  --         entries c = c $/ element "output" &/ element "entries" &// content
-
-
-
-
-
--- rundeckVersion :: IO T.Text
--- rundeckVersion = do
---   r <- systemInfo
---   let x = decodeUtf8 $ r ^. responseBody
---   let doc = parseText_ def x
---   let cursor = fromDocument doc
---   return $ T.concat $ versionContent cursor
---   where versionContent c = c $/ element "system" &/ element "rundeck" &/ element "version" &// content
-
-{-
-<result success='true' apiversion='13'>
-    <output>
-      <id>13</id>
-      <offset>430</offset>
-      <completed>true</completed>
-      <execCompleted>true</execCompleted>
-      <hasFailedNodes>false</hasFailedNodes>
-      <execState>succeeded</execState>
-      <lastModified>1438538885000</lastModified>
-      <execDuration>2551</execDuration>
-      <percentLoaded>98.62385321100918</percentLoaded>
-      <totalSize>436</totalSize>
-      <entries>
-        <entry time='18:08:04' absolute_time='2015-08-02T18:08:04Z' level='NORMAL' user='rundeck' command='' stepctx='1' node='localhost'>hello world</entry>
-   </entries>
-  </output>
-</result>
--}
-
-
-
--- for repl
-mainopts = MainOptions "192.168.56.2" "4440" "x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e" "local"
-eoopts = ExecutionOutputOptions "15" False
--- Main.executionOutput RC.ExecutionOutput mainopts eoopts [""]
--- r <- RC.executionOutput (conninfo mainopts) (params RC.ExecutionOutput mainopts) (eoId eoopts)
+          if (outputContent cursor "completed") == "true"
+            then return . L.fromStrict . TE.encodeUtf8 $ outputContent cursor "entries"
+            else do
+              TI.putStr (outputContent cursor "entries")
+              threadDelay $ 2 * 1000000  -- 2 seconds
+              go safeOffset
