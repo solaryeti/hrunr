@@ -113,7 +113,7 @@
 
 
 -- for repl
--- mainopts = MainOptions "192.168.56.2" "4440" "x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e" "local"
+-- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
 -- eoopts = ExecutionOutputOptions "15" False
 -- Main.executionOutput RC.ExecutionOutput mainopts eoopts [""]
 -- r <- RC.executionOutput (conninfo mainopts) (params RC.ExecutionOutput mainopts) (eoId eoopts)

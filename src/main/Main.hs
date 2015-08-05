@@ -24,9 +24,11 @@ import           Data.Text (pack)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TI (putStr)
 import qualified Data.Text.Encoding as TE
-import qualified Data.ByteString.Lazy as L (fromStrict, ByteString)
+import qualified Data.ByteString.Lazy as L (fromStrict, putStr, ByteString)
 
 import           Control.Concurrent (threadDelay)
+
+-- import Data.Char (ord)
 
 data MainOptions = MainOptions
     { host :: String
@@ -40,7 +42,7 @@ instance Options MainOptions where
       <*> simpleOption "port" "4440" "Rundeck port"
       <*> defineOption optionType_string (\o -> o
               { optionLongFlags = ["authtoken"]
-              , optionDefault = "x1XSHLASnToUcVtQRJAQdKTQLMEbFF9e"
+              , optionDefault = "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk"
               , optionGroup = Just $ group "param" "Params" ""
               })
       <*> defineOption optionType_string (\o -> o
@@ -53,12 +55,13 @@ data NoSubOptions = NoSubOptions
 instance Options NoSubOptions where
   defineOptions = pure NoSubOptions
 
-data RunJobOptions = RunJobOptions { rjId :: String }
+data RunJobOptions = RunJobOptions { rjId :: String, rjFollow :: Bool }
 instance Options RunJobOptions where
   defineOptions = pure RunJobOptions
       <*> simpleOption "id" "" "Job to run"
+      <*> simpleOption "follow" False "Tail execution output"
 
-data ExecutionOutputOptions = ExecutionOutputOptions { eoId :: String, follow :: Bool }
+data ExecutionOutputOptions = ExecutionOutputOptions { eoId :: String, eoFollow :: Bool }
 instance Options ExecutionOutputOptions where
   defineOptions = pure ExecutionOutputOptions
       <*> simpleOption "id" "" "Job to run"
@@ -73,12 +76,14 @@ params :: RC.ApiCall -> MainOptions -> RC.Params
 params call mainOpts
   | call `elem` [RC.Jobs, RC.ExportJobs] =  [("authtoken", [(pack $ authtoken mainOpts)])
                                             ,("project", [(pack $ project mainOpts)])]
-  -- | call `elem` [RC.ExecutionOutput] = [("authtoken", [(pack $ authtoken mainOpts)])
-  --                                      ,("offset", ["0"])]
   | otherwise = [("authtoken", [(pack $ authtoken mainOpts)])]
 
+-- lstrip :: L.ByteString -> L.ByteString
+-- lstrip bs = L.dropWhile (\x -> x `elem` wschars) bs
+--   where wschars = map (fromIntegral . ord) [' ', '\r', 'n', 't']
+
 main :: IO ()
-main = print =<< runSubcommand
+main = L.putStr =<< runSubcommand
     [ subcommand "system-info" $ simpleRun RC.SystemInfo
     , subcommand "projects" $ simpleRun RC.Projects
     , subcommand "tokens" $ simpleRun RC.Tokens
@@ -96,7 +101,10 @@ simpleRun call mainOpts _ _ = do
 runjob :: RC.ApiCall -> MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob call mainOpts opts _ = do
   r <- RC.jobExecutions (conninfo mainOpts) (params call mainOpts) RC.Post (rjId opts)
-  return $ r ^. W.responseBody
+  let body = r ^. W.responseBody
+  if (rjFollow opts)
+     then executionOutput call mainOpts (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor body) True) [""]
+     else return body
 
 executionOutput :: RC.ApiCall -> MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 executionOutput call mainOpts opts _ = go "0"
@@ -106,11 +114,16 @@ executionOutput call mainOpts opts _ = go "0"
 
           -- hacky way to get offset as num: See Data.Text.Read
           -- we have to decrement the offset by one or else rundeck give a fault
-          let safeOffset = T.pack . show $ (read . T.unpack $ outputContent cursor "offset" :: Int) - 1
+          -- TODO: cleanup this is so ugly it hurts my eyes
+          let safeOffset = T.pack . show $ (\n -> if n > 0 then n - 1 else 0) (read . T.unpack $ outputContent cursor "offset" :: Int)
 
           if (outputContent cursor "completed") == "true"
             then return . L.fromStrict . TE.encodeUtf8 $ outputContent cursor "entries"
             else do
-              TI.putStr (outputContent cursor "entries")
+              TI.putStr $ T.stripEnd (outputContent cursor "entries")
               threadDelay $ 2 * 1000000  -- 2 seconds
               go safeOffset
+
+
+-- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
+-- eoopts = ExecutionOutputOptions "15" False
