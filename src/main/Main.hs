@@ -115,16 +115,16 @@ executionOutput :: RC.ApiCall -> MainOptions -> ExecutionOutputOptions -> Args -
 executionOutput call mainOpts opts _ = go "0"
   where go offset = do
           r <- RC.executionOutput (conninfo mainOpts) (("offset", [offset]) : params call mainOpts) (eoId opts)
-          let cursor = responseBodyCursor $ r ^. W.responseBody
+          let output = outputContent . responseBodyCursor $ r ^. W.responseBody
 
           -- hacky way to get offset as num: See Data.Text.Read
           -- we have to decrement the offset by one or else rundeck give a fault
-          let safeOffset = T.pack . show $ positivePred (read . T.unpack $ outputContent cursor "offset" :: Int)
+          let safeOffset = T.pack . show $ positivePred (read . T.unpack $ output "offset" :: Int)
 
-          if outputContent cursor "completed" == "true"
-            then return . L.fromStrict . TE.encodeUtf8 $ outputContent cursor "entries"
+          if output "completed" == "true"
+            then return . L.fromStrict . TE.encodeUtf8 $ output "entries"
             else do
-              TI.putStr . T.stripEnd $ outputContent cursor "entries"
+              TI.putStr . T.stripEnd $ output "entries"
               threadDelay $ 2 * 1000000  -- 2 seconds
               go safeOffset
 
