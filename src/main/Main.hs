@@ -1,40 +1,38 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveDataTypeable #-}
 {-# OPTIONS_GHC -Wall #-}
 
 module Main where
 
 -- Rundeck Libraries
-import qualified Rundeck.Call as RC
-import           Rundeck.Call ()  -- import instances
+import           Rundeck.Call         ()
+import qualified Rundeck.Call         as RC
 import           Rundeck.Xml
 
 -- For CLI options
-import           Options
 import           Control.Applicative
+import           Options
 
-import qualified Network.Wreq as W
-import           Control.Lens ((^.))
-import           Data.Text (pack)
-
+import           Control.Lens         ((^.))
+import           Data.Text            (pack)
+import qualified Network.Wreq         as W
 
 -- For JSON processing
 -- import           Data.Aeson.Lens (key, _String, _Bool)
 
-import qualified Data.Text as T
-import qualified Data.Text.IO as TI (putStr)
-import qualified Data.Text.Encoding as TE
-import qualified Data.ByteString.Lazy as L (fromStrict, putStr, ByteString)
+import qualified Data.ByteString.Lazy as L (ByteString, fromStrict, putStr)
+import qualified Data.Text            as T
+import qualified Data.Text.Encoding   as TE
+import qualified Data.Text.IO         as TI (putStr)
 
-import           Control.Concurrent (threadDelay)
+import           Control.Concurrent   (threadDelay)
 
 -- import Data.Char (ord)
 
 data MainOptions = MainOptions
-    { host :: String
-    , port :: String
+    { host      :: String
+    , port      :: String
     , authtoken :: String
-    , project :: String
+    , project   :: String
     }
 instance Options MainOptions where
   defineOptions = pure MainOptions
@@ -74,9 +72,15 @@ conninfo mainOpts = RC.Conninfo (host mainOpts) (port mainOpts)
 
 params :: RC.ApiCall -> MainOptions -> RC.Params
 params call mainOpts
-  | call `elem` [RC.Jobs, RC.ExportJobs] =  [("authtoken", [(pack $ authtoken mainOpts)])
-                                            ,("project", [(pack $ project mainOpts)])]
-  | otherwise = [("authtoken", [(pack $ authtoken mainOpts)])]
+  | call `elem` [RC.Jobs, RC.ExportJobs] =  [("authtoken", [pack $ authtoken mainOpts])
+                                            ,("project", [pack $ project mainOpts])]
+  | otherwise = [("authtoken", [pack $ authtoken mainOpts])]
+
+-- | The predecessor of a positive number
+positivePred :: (Num a, Ord a, Enum a) => a -> a
+positivePred n
+  | n > 0 = pred n
+  | otherwise = 0
 
 -- lstrip :: L.ByteString -> L.ByteString
 -- lstrip bs = L.dropWhile (\x -> x `elem` wschars) bs
@@ -93,6 +97,7 @@ main = L.putStr =<< runSubcommand
     , subcommand "execution-output" $ executionOutput RC.JobExecutions
     ]
 
+
 simpleRun :: RC.ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
 simpleRun call mainOpts _ _ = do
   r <- RC.apiGet call (conninfo mainOpts) (params call mainOpts)
@@ -102,9 +107,9 @@ runjob :: RC.ApiCall -> MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob call mainOpts opts _ = do
   r <- RC.jobExecutions (conninfo mainOpts) (params call mainOpts) RC.Post (rjId opts)
   let body = r ^. W.responseBody
-  if (rjFollow opts)
-     then executionOutput call mainOpts (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor body) True) [""]
-     else return body
+  if rjFollow opts
+    then executionOutput call mainOpts (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor body) True) [""]
+    else return body
 
 executionOutput :: RC.ApiCall -> MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 executionOutput call mainOpts opts _ = go "0"
@@ -114,13 +119,12 @@ executionOutput call mainOpts opts _ = go "0"
 
           -- hacky way to get offset as num: See Data.Text.Read
           -- we have to decrement the offset by one or else rundeck give a fault
-          -- TODO: cleanup this is so ugly it hurts my eyes
-          let safeOffset = T.pack . show $ (\n -> if n > 0 then n - 1 else 0) (read . T.unpack $ outputContent cursor "offset" :: Int)
+          let safeOffset = T.pack . show $ positivePred (read . T.unpack $ outputContent cursor "offset" :: Int)
 
-          if (outputContent cursor "completed") == "true"
+          if outputContent cursor "completed" == "true"
             then return . L.fromStrict . TE.encodeUtf8 $ outputContent cursor "entries"
             else do
-              TI.putStr $ T.stripEnd (outputContent cursor "entries")
+              TI.putStr . T.stripEnd $ outputContent cursor "entries"
               threadDelay $ 2 * 1000000  -- 2 seconds
               go safeOffset
 

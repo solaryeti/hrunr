@@ -28,15 +28,17 @@ module Rundeck.Call
        , executionOutput
        ) where
 
-import Rundeck.Urls
+import           Rundeck.Urls
 
-import           Network.Wreq hiding (params)
+import           Control.Applicative  ((<$>))
+import           Control.Lens         ((&), (.~))
 import qualified Data.ByteString.Lazy as L
-import           Control.Lens ((.~), (&))
-import           Data.Text (Text)
+import           Data.Text            (Text)
+import           Network.Wreq         hiding (params)
 
 -- | HTTP methods
 data Method = Get | Post
+            deriving (Show, Eq)
 
 type RundeckResponse = (Response L.ByteString)
 type Param = (Text, [Text])
@@ -56,6 +58,7 @@ data ApiCall = SystemInfo
              | Jobs
              | ExecutionOutput
              | JobExecutions
+             | Test Method
              deriving (Show, Eq)
 
 url :: String -> String -> String
@@ -67,7 +70,7 @@ opts params = defaults & paramList params
 paramList :: Params -> Options -> Options
 paramList [] = param "" .~ []
 paramList [(x, xs)] = param x .~ xs
-paramList ((x, xs):xss) = fmap (param x .~ xs) $ paramList xss
+paramList ((x, xs):xss) = (param x .~ xs) <$> paramList xss
 
 -- | Issue a Get request against the Rundeck API
 -- The api endpoint is determined by the type of the 'ApiCall' made.

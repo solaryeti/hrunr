@@ -5,15 +5,17 @@ module Rundeck.Xml
        , responseBodyCursor
        ) where
 
-import qualified Data.Text as T
-import qualified Data.ByteString.Lazy as L
+import qualified Data.ByteString.Lazy    as L
+import qualified Data.Text               as T
 
 -- For XML processing
-import           Data.Text.Lazy.Encoding  (decodeUtf8)
-import           Text.XML (parseText_, def, Node)
-import           Text.XML.Cursor (attribute, content, element, fromDocument, (&/), (&//), ($/), (>=>), Cursor)
+import           Data.Text.Lazy.Encoding (decodeUtf8)
+import           Data.XML.Types          (Name)
+import           Text.XML                (Node, def, parseText_)
+import           Text.XML.Cursor         (Cursor, attribute, content, element,
+                                          fromDocument, ($/), (&/), (&//),
+                                          (>=>))
 import           Text.XML.Cursor.Generic (Cursor)
-import           Data.XML.Types (Name)
 
 outputContent :: Text.XML.Cursor.Generic.Cursor Text.XML.Node -> Data.XML.Types.Name -> T.Text
 outputContent cursor e = T.concat $ cursor $/ element "output" &/ element e &// content
