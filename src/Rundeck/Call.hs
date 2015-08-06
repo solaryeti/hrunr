@@ -24,8 +24,7 @@ module Rundeck.Call
 
        -- * Functions
        , apiGet
-       , jobExecutions
-       , executionOutput
+       , apiPost
        ) where
 
 import           Rundeck.Urls
@@ -56,9 +55,8 @@ data ApiCall = SystemInfo
              | ExportJobs
              | Tokens
              | Jobs
-             | ExecutionOutput
-             | JobExecutions
-             | Test Method
+             | ExecutionOutput Id
+             | JobExecutions Id
              deriving (Show, Eq)
 
 url :: String -> String -> String
@@ -76,17 +74,15 @@ paramList ((x, xs):xss) = (param x .~ xs) <$> paramList xss
 -- The api endpoint is determined by the type of the 'ApiCall' made.
 apiGet :: ApiCall -> Conninfo -> Params -> IO (Response L.ByteString)
 apiGet a (Conninfo h p) params = getWith (opts params) $ url h p ++ apiurl a
-  where apiurl SystemInfo = systemInfoUrl
-        apiurl Projects = projectsUrl
-        apiurl Tokens = tokensUrl
+  where apiurl (ExecutionOutput i) = executionOutputUrl i
+        apiurl (JobExecutions i)   = jobExecutionsUrl i
         apiurl ExportJobs = exportUrl
-        apiurl Jobs = jobsUrl
-        apiurl _ = "/"  -- TODO: tidy up, this is a hack just to make it exhaustive
+        apiurl Jobs       = jobsUrl
+        apiurl Projects   = projectsUrl
+        apiurl Tokens     = tokensUrl
+        apiurl SystemInfo = systemInfoUrl
 
-jobExecutions :: Conninfo -> Params -> Method -> Id -> IO (Response L.ByteString)
-jobExecutions (Conninfo h p) params Get i = getWith (opts params) $ url h p ++ jobExecutionsUrl i
-jobExecutions (Conninfo h p) params Post i = postWith (opts params) (url h p ++ jobExecutionsUrl i) [partText "loglevel" "INFO"]
-
--- | Get the execution output for a job from Rundeck
-executionOutput ::Conninfo -> Params -> Id -> IO (Response L.ByteString)
-executionOutput (Conninfo h p) params i = getWith (opts params) $ url h p ++ executionOutputUrl i
+apiPost :: ApiCall -> Conninfo -> Params -> IO (Response L.ByteString)
+apiPost a (Conninfo h p) params = postWith (opts params) (url h p ++ apiurl a) [partText "loglevel" "INFO"]
+  where apiurl (JobExecutions i) = jobExecutionsUrl i
+        apiurl _          = "/"  -- TODO: tidy up, this is a hack just to make it exhaustive

@@ -88,33 +88,34 @@ positivePred n
 
 main :: IO ()
 main = L.putStr =<< runSubcommand
-    [ subcommand "system-info" $ simpleRun RC.SystemInfo
-    , subcommand "projects" $ simpleRun RC.Projects
-    , subcommand "tokens" $ simpleRun RC.Tokens
-    , subcommand "jobs" $ simpleRun RC.Jobs
-    , subcommand "export-jobs" $ simpleRun RC.ExportJobs
-    , subcommand "runjob" $ runjob RC.ExecutionOutput
-    , subcommand "execution-output" $ executionOutput RC.JobExecutions
+    [ subcommand "system-info" $ get RC.SystemInfo
+    , subcommand "projects" $ get RC.Projects
+    , subcommand "tokens" $ get RC.Tokens
+    , subcommand "jobs" $ get RC.Jobs
+    , subcommand "export-jobs" $ get RC.ExportJobs
+    , subcommand "runjob" $ runjob
+    , subcommand "execution-output" $ executionOutput
     ]
 
 
-simpleRun :: RC.ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
-simpleRun call mainOpts _ _ = do
+get :: RC.ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
+get call mainOpts _ _ = do
   r <- RC.apiGet call (conninfo mainOpts) (params call mainOpts)
   return $ r ^. W.responseBody
 
-runjob :: RC.ApiCall -> MainOptions -> RunJobOptions -> Args -> IO L.ByteString
-runjob call mainOpts opts _ = do
-  r <- RC.jobExecutions (conninfo mainOpts) (params call mainOpts) RC.Post (rjId opts)
+
+runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
+runjob mainOpts opts _ = do
+  r <- RC.apiPost (RC.JobExecutions $ rjId opts) (conninfo mainOpts) (params (RC.JobExecutions $ rjId opts) mainOpts)
   let body = r ^. W.responseBody
   if rjFollow opts
-    then executionOutput call mainOpts (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor body) True) [""]
+    then executionOutput mainOpts (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor body) True) [""]
     else return body
 
-executionOutput :: RC.ApiCall -> MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
-executionOutput call mainOpts opts _ = go "0"
+executionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
+executionOutput mainOpts opts _ = go "0"
   where go offset = do
-          r <- RC.executionOutput (conninfo mainOpts) (("offset", [offset]) : params call mainOpts) (eoId opts)
+          r <- RC.apiGet (RC.ExecutionOutput (eoId opts)) (conninfo mainOpts) (("offset", [offset]) : params (RC.ExecutionOutput (eoId opts)) mainOpts)
           let output = outputContent . responseBodyCursor $ r ^. W.responseBody
 
           -- hacky way to get offset as num: See Data.Text.Read
