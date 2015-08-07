@@ -63,7 +63,7 @@ conninfo mainOpts = Conninfo (host mainOpts) (port mainOpts)
 params :: ApiCall -> MainOptions -> Params
 params call mainOpts
   | call `elem` [Jobs, ExportJobs] =  [("authtoken", [T.pack $ authtoken mainOpts])
-                                            ,("project", [T.pack $ project mainOpts])]
+                                      ,("project", [T.pack $ project mainOpts])]
   | otherwise = [("authtoken", [T.pack $ authtoken mainOpts])]
 
 -- | The predecessor of a positive number
@@ -89,23 +89,21 @@ main = L.putStr =<< runSubcommand
 
 
 doGet :: ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
-doGet call mainOpts _ _ = do
-  r <- get call (conninfo mainOpts) (params call mainOpts)
-  return $ body r
-
+doGet call mainOpts _ _ = get call (conninfo mainOpts) (params call mainOpts) >>= return . body
 
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
-runjob mainOpts opts _ = do
-  r <- post (JobExecutions $ rjId opts) (conninfo mainOpts) (params (JobExecutions $ rjId opts) mainOpts)
+runjob mainOpts opts _ = post call (conninfo mainOpts) (params call mainOpts) >>= \r ->
   if rjFollow opts
-    then executionOutput mainOpts (ExecutionOutputOptions (T.unpack . executionId . responseBodyCursor $ body r) True) [""]
+    then executionOutput mainOpts (executionOpts $ body r) [""]
     else return $ body r
+  where call = JobExecutions $ rjId opts
+        executionOpts b = (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True)
 
 executionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 executionOutput mainOpts opts _ = go "0"
-  where go offset = do
-          r <- get (ExecutionOutput (eoId opts)) (conninfo mainOpts)
-               (("offset", [offset]) : params (ExecutionOutput (eoId opts)) mainOpts)
+  where call = ExecutionOutput $ eoId opts
+        go offset = do
+          r <- get call (conninfo mainOpts) $ ("offset", [offset]) : params call mainOpts
           let output = outputContent . responseBodyCursor $ body r
 
           -- hacky way to get offset as num: See Data.Text.Read
@@ -118,6 +116,7 @@ executionOutput mainOpts opts _ = go "0"
               TI.putStr . T.stripEnd $ output "entries"
               threadDelay $ 2 * 1000000  -- 2 seconds
               go safeOffset
+
 
 
 -- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
