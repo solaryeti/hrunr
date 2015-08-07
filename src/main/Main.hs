@@ -4,8 +4,8 @@
 module Main where
 
 -- Rundeck Libraries
-import           Rundeck.Call         ()
-import qualified Rundeck.Call         as RC
+-- import           Rundeck.Call         ()
+import           Rundeck.Call         hiding (host, port)
 import           Rundeck.Xml
 
 -- For CLI options
@@ -57,12 +57,12 @@ instance Options ExecutionOutputOptions where
 
 type Args = [String]
 
-conninfo :: MainOptions -> RC.Conninfo
-conninfo mainOpts = RC.Conninfo (host mainOpts) (port mainOpts)
+conninfo :: MainOptions -> Conninfo
+conninfo mainOpts = Conninfo (host mainOpts) (port mainOpts)
 
-params :: RC.ApiCall -> MainOptions -> RC.Params
+params :: ApiCall -> MainOptions -> Params
 params call mainOpts
-  | call `elem` [RC.Jobs, RC.ExportJobs] =  [("authtoken", [T.pack $ authtoken mainOpts])
+  | call `elem` [Jobs, ExportJobs] =  [("authtoken", [T.pack $ authtoken mainOpts])
                                             ,("project", [T.pack $ project mainOpts])]
   | otherwise = [("authtoken", [T.pack $ authtoken mainOpts])]
 
@@ -78,35 +78,35 @@ positivePred n
 
 main :: IO ()
 main = L.putStr =<< runSubcommand
-    [ subcommand "system-info" $ get RC.SystemInfo
-    , subcommand "projects" $ get RC.Projects
-    , subcommand "tokens" $ get RC.Tokens
-    , subcommand "jobs" $ get RC.Jobs
-    , subcommand "export-jobs" $ get RC.ExportJobs
+    [ subcommand "system-info" $ doGet SystemInfo
+    , subcommand "projects" $ doGet Projects
+    , subcommand "tokens" $ doGet Tokens
+    , subcommand "jobs" $ doGet Jobs
+    , subcommand "export-jobs" $ doGet ExportJobs
     , subcommand "runjob" $ runjob
     , subcommand "execution-output" $ executionOutput
     ]
 
 
-get :: RC.ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
-get call mainOpts _ _ = do
-  r <- RC.apiGet call (conninfo mainOpts) (params call mainOpts)
-  return $ RC.body r
+doGet :: ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
+doGet call mainOpts _ _ = do
+  r <- get call (conninfo mainOpts) (params call mainOpts)
+  return $ body r
 
 
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob mainOpts opts _ = do
-  r <- RC.apiPost (RC.JobExecutions $ rjId opts) (conninfo mainOpts) (params (RC.JobExecutions $ rjId opts) mainOpts)
-  let body = RC.body r
+  r <- post (JobExecutions $ rjId opts) (conninfo mainOpts) (params (JobExecutions $ rjId opts) mainOpts)
   if rjFollow opts
-    then executionOutput mainOpts (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor body) True) [""]
-    else return body
+    then executionOutput mainOpts (ExecutionOutputOptions (T.unpack . executionId . responseBodyCursor $ body r) True) [""]
+    else return $ body r
 
 executionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 executionOutput mainOpts opts _ = go "0"
   where go offset = do
-          r <- RC.apiGet (RC.ExecutionOutput (eoId opts)) (conninfo mainOpts) (("offset", [offset]) : params (RC.ExecutionOutput (eoId opts)) mainOpts)
-          let output = outputContent . responseBodyCursor $ RC.body r
+          r <- get (ExecutionOutput (eoId opts)) (conninfo mainOpts)
+               (("offset", [offset]) : params (ExecutionOutput (eoId opts)) mainOpts)
+          let output = outputContent . responseBodyCursor $ body r
 
           -- hacky way to get offset as num: See Data.Text.Read
           -- we have to decrement the offset by one or else rundeck give a fault
