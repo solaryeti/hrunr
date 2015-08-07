@@ -12,21 +12,11 @@ import           Rundeck.Xml
 import           Control.Applicative
 import           Options
 
-import           Control.Lens         ((^.))
-import           Data.Text            (pack)
-import qualified Network.Wreq         as W
-
--- For JSON processing
--- import           Data.Aeson.Lens (key, _String, _Bool)
-
+import           Control.Concurrent   (threadDelay)
 import qualified Data.ByteString.Lazy as L (ByteString, fromStrict, putStr)
 import qualified Data.Text            as T
 import qualified Data.Text.Encoding   as TE
 import qualified Data.Text.IO         as TI (putStr)
-
-import           Control.Concurrent   (threadDelay)
-
--- import Data.Char (ord)
 
 data MainOptions = MainOptions
     { host      :: String
@@ -72,9 +62,9 @@ conninfo mainOpts = RC.Conninfo (host mainOpts) (port mainOpts)
 
 params :: RC.ApiCall -> MainOptions -> RC.Params
 params call mainOpts
-  | call `elem` [RC.Jobs, RC.ExportJobs] =  [("authtoken", [pack $ authtoken mainOpts])
-                                            ,("project", [pack $ project mainOpts])]
-  | otherwise = [("authtoken", [pack $ authtoken mainOpts])]
+  | call `elem` [RC.Jobs, RC.ExportJobs] =  [("authtoken", [T.pack $ authtoken mainOpts])
+                                            ,("project", [T.pack $ project mainOpts])]
+  | otherwise = [("authtoken", [T.pack $ authtoken mainOpts])]
 
 -- | The predecessor of a positive number
 positivePred :: (Num a, Ord a, Enum a) => a -> a
@@ -101,13 +91,13 @@ main = L.putStr =<< runSubcommand
 get :: RC.ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
 get call mainOpts _ _ = do
   r <- RC.apiGet call (conninfo mainOpts) (params call mainOpts)
-  return $ r ^. W.responseBody
+  return $ RC.body r
 
 
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob mainOpts opts _ = do
   r <- RC.apiPost (RC.JobExecutions $ rjId opts) (conninfo mainOpts) (params (RC.JobExecutions $ rjId opts) mainOpts)
-  let body = r ^. W.responseBody
+  let body = RC.body r
   if rjFollow opts
     then executionOutput mainOpts (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor body) True) [""]
     else return body
@@ -116,7 +106,7 @@ executionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteStr
 executionOutput mainOpts opts _ = go "0"
   where go offset = do
           r <- RC.apiGet (RC.ExecutionOutput (eoId opts)) (conninfo mainOpts) (("offset", [offset]) : params (RC.ExecutionOutput (eoId opts)) mainOpts)
-          let output = outputContent . responseBodyCursor $ r ^. W.responseBody
+          let output = outputContent . responseBodyCursor $ RC.body r
 
           -- hacky way to get offset as num: See Data.Text.Read
           -- we have to decrement the offset by one or else rundeck give a fault

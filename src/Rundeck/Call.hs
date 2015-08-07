@@ -24,12 +24,13 @@ module Rundeck.Call
        -- * Functions
        , apiGet
        , apiPost
+       , body
        ) where
 
 import           Rundeck.Urls
 
 import           Control.Applicative  ((<$>))
-import           Control.Lens         ((&), (.~))
+import           Control.Lens         ((&), (.~), (^.))
 import qualified Data.ByteString.Lazy as L
 import           Data.Text            (Text)
 import           Network.Wreq         hiding (params)
@@ -56,6 +57,9 @@ data ApiCall = SystemInfo
 
 url :: String -> String -> String
 url h p = "http://" ++ h ++ ":" ++ p
+
+body :: Response a -> a
+body r = r ^. responseBody
 
 opts :: Params -> Options
 opts params = defaults & paramList params
