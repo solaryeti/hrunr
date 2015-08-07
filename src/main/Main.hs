@@ -101,8 +101,7 @@ runjob mainOpts opts _ = post call (conninfo mainOpts) (params call mainOpts) >>
 
 executionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 executionOutput mainOpts opts _ = go "0"
-  where call = ExecutionOutput $ eoId opts
-        go offset = do
+  where go offset = do
           r <- get call (conninfo mainOpts) $ ("offset", [offset]) : params call mainOpts
           let output = outputContent . responseBodyCursor $ body r
 
@@ -117,6 +116,7 @@ executionOutput mainOpts opts _ = go "0"
               threadDelay $ 2 * 1000000  -- 2 seconds
               go safeOffset
 
+        call = ExecutionOutput $ eoId opts
 
 
 -- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
