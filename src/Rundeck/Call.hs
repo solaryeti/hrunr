@@ -15,7 +15,6 @@ module Rundeck.Call
        -- ** Data Types
          ApiCall(..)
        , Conninfo(..)
-       , Method(..)
 
        -- ** Type Aliases
        , RundeckResponse
@@ -34,10 +33,6 @@ import           Control.Lens         ((&), (.~))
 import qualified Data.ByteString.Lazy as L
 import           Data.Text            (Text)
 import           Network.Wreq         hiding (params)
-
--- | HTTP methods
-data Method = Get | Post
-            deriving (Show, Eq)
 
 type RundeckResponse = (Response L.ByteString)
 type Param = (Text, [Text])
@@ -72,7 +67,7 @@ paramList ((x, xs):xss) = (param x .~ xs) <$> paramList xss
 
 -- | Issue a Get request against the Rundeck API
 -- The api endpoint is determined by the type of the 'ApiCall' made.
-apiGet :: ApiCall -> Conninfo -> Params -> IO (Response L.ByteString)
+apiGet :: ApiCall -> Conninfo -> Params -> IO RundeckResponse
 apiGet a (Conninfo h p) params = getWith (opts params) $ url h p ++ apiurl a
   where apiurl (ExecutionOutput i) = executionOutputUrl i
         apiurl (JobExecutions i)   = jobExecutionsUrl i
@@ -82,7 +77,7 @@ apiGet a (Conninfo h p) params = getWith (opts params) $ url h p ++ apiurl a
         apiurl Tokens     = tokensUrl
         apiurl SystemInfo = systemInfoUrl
 
-apiPost :: ApiCall -> Conninfo -> Params -> IO (Response L.ByteString)
+apiPost :: ApiCall -> Conninfo -> Params -> IO RundeckResponse
 apiPost a (Conninfo h p) params = postWith (opts params) (url h p ++ apiurl a) [partText "loglevel" "INFO"]
   where apiurl (JobExecutions i) = jobExecutionsUrl i
-        apiurl _          = "/"  -- TODO: tidy up, this is a hack just to make it exhaustive
+        apiurl _          = "/"  -- TODO: tidy up, this is a hack just to make it exhaustive. Use Either instead
