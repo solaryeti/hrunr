@@ -35,7 +35,6 @@ module Rundeck.Call
 
 import           Rundeck.Urls
 
-import           Control.Applicative  ((<$>))
 import           Control.Lens         ((&), (.~), (^.))
 import qualified Data.ByteString.Lazy as L
 import           Data.Text            (Text)

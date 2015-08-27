@@ -81,13 +81,12 @@ main = L.putStr =<< runSubcommand
     , subcommand "tokens" $ doGet Tokens
     , subcommand "jobs" $ doGet Jobs
     , subcommand "export-jobs" $ doGet ExportJobs
-    , subcommand "runjob" $ runjob
-    , subcommand "execution-output" $ initExecutionOutput
+    , subcommand "runjob" runjob
+    , subcommand "execution-output" initExecutionOutput
     ]
 
-
 doGet :: ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
-doGet call mainOpts _ _ = get call (conninfo mainOpts) (params call mainOpts) >>= return . body
+doGet call mainOpts _ _ = body <$> get call (conninfo mainOpts) (params call mainOpts)
 
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob mainOpts opts _ = withAPISession $ \sess -> postWithSession sess call (conninfo mainOpts) (params call mainOpts) >>= \r ->
@@ -95,7 +94,7 @@ runjob mainOpts opts _ = withAPISession $ \sess -> postWithSession sess call (co
     then executionOutput sess mainOpts (executionOpts $ body r) [""]
     else return $ body r
   where call = JobExecutions $ rjId opts
-        executionOpts b = (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True)
+        executionOpts b = ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True
 
 initExecutionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 initExecutionOutput mainOpts opts eopts = withAPISession $ \sess -> executionOutput sess mainOpts opts eopts
