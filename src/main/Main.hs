@@ -11,11 +11,11 @@ import           Rundeck.Xml
 import           Options
 
 import           Control.Concurrent (threadDelay)
+import qualified Control.Exception as E
 import qualified Data.ByteString.Lazy as L (ByteString, fromStrict, putStr)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text.IO as TI (putStr)
-import qualified Control.Exception as E
 import           Network.HTTP.Client (HttpException(..))
 
 data MainOptions = MainOptions
