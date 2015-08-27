@@ -10,6 +10,7 @@ module Rundeck.Urls
        , jobExecutionsUrl
        , executionOutputUrl
        , Id
+       , ApiUrl
        ) where
 
 type ApiUrl = String

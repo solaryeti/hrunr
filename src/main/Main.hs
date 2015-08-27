@@ -4,12 +4,10 @@
 module Main where
 
 -- Rundeck Libraries
--- import           Rundeck.Call         ()
 import           Rundeck.Call         hiding (host, port)
 import           Rundeck.Xml
 
 -- For CLI options
-import           Control.Applicative
 import           Options
 
 import           Control.Concurrent   (threadDelay)
@@ -84,7 +82,7 @@ main = L.putStr =<< runSubcommand
     , subcommand "jobs" $ doGet Jobs
     , subcommand "export-jobs" $ doGet ExportJobs
     , subcommand "runjob" $ runjob
-    , subcommand "execution-output" $ executionOutput
+    , subcommand "execution-output" $ initExecutionOutput
     ]
 
 
@@ -92,17 +90,20 @@ doGet :: ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
 doGet call mainOpts _ _ = get call (conninfo mainOpts) (params call mainOpts) >>= return . body
 
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
-runjob mainOpts opts _ = post call (conninfo mainOpts) (params call mainOpts) >>= \r ->
+runjob mainOpts opts _ = withAPISession $ \sess -> postWithSession sess call (conninfo mainOpts) (params call mainOpts) >>= \r ->
   if rjFollow opts
-    then executionOutput mainOpts (executionOpts $ body r) [""]
+    then executionOutput sess mainOpts (executionOpts $ body r) [""]
     else return $ body r
   where call = JobExecutions $ rjId opts
         executionOpts b = (ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True)
 
-executionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
-executionOutput mainOpts opts _ = go "0"
+initExecutionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
+initExecutionOutput mainOpts opts eopts = withAPISession $ \sess -> executionOutput sess mainOpts opts eopts
+
+executionOutput :: Session -> MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
+executionOutput sess mainOpts opts _ = go "0"
   where go offset = do
-          r <- get call (conninfo mainOpts) $ ("offset", [offset]) : params call mainOpts
+          r <- getWithSession sess call (conninfo mainOpts) $ ("offset", [offset]) : params call mainOpts
           let output = outputContent . responseBodyCursor $ body r
 
           -- hacky way to get offset as num: See Data.Text.Read

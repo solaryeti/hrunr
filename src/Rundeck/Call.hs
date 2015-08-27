@@ -22,9 +22,15 @@ module Rundeck.Call
        , Params
 
        -- * Functions
-       , get
-       , post
        , body
+       , get
+       , getWithSession
+       , post
+       , postWithSession
+
+       -- * Re-exports
+       , S.Session
+       , S.withAPISession
        ) where
 
 import           Rundeck.Urls
@@ -34,6 +40,7 @@ import           Control.Lens         ((&), (.~), (^.))
 import qualified Data.ByteString.Lazy as L
 import           Data.Text            (Text)
 import qualified Network.Wreq         as W
+import qualified Network.Wreq.Session as S
 
 type RundeckResponse = (W.Response L.ByteString)
 type Param = (Text, [Text])
@@ -70,21 +77,31 @@ paramList [] = W.param "" .~ []
 paramList [(x, xs)] = W.param x .~ xs
 paramList ((x, xs):xss) = (W.param x .~ xs) <$> paramList xss
 
--- | Issue a Get request against the Rundeck API
+apiurl :: ApiCall -> ApiUrl
+apiurl (ExecutionOutput i) = executionOutputUrl i
+apiurl (JobExecutions i)   = jobExecutionsUrl i
+apiurl ExportJobs = exportUrl
+apiurl Jobs       = jobsUrl
+apiurl Projects   = projectsUrl
+apiurl Tokens     = tokensUrl
+apiurl SystemInfo = systemInfoUrl
+
+-- | Issue a Get request against the Rundeck API.
 -- The api endpoint is determined by the type of the 'ApiCall' made.
 get :: ApiCall -> Conninfo -> Params -> IO RundeckResponse
 get a (Conninfo h p) params = W.getWith (opts params) $ url h p ++ apiurl a
-  where apiurl (ExecutionOutput i) = executionOutputUrl i
-        apiurl (JobExecutions i)   = jobExecutionsUrl i
-        apiurl ExportJobs = exportUrl
-        apiurl Jobs       = jobsUrl
-        apiurl Projects   = projectsUrl
-        apiurl Tokens     = tokensUrl
-        apiurl SystemInfo = systemInfoUrl
 
--- | Issue a Post request against the Rundeck API
+-- | Issue a Post request against the Rundeck API.
 -- The api endpoint is determined by the type of the 'ApiCall' made.
 post :: ApiCall -> Conninfo -> Params -> IO RundeckResponse
 post a (Conninfo h p) params = W.postWith (opts params) (url h p ++ apiurl a) [W.partText "loglevel" "INFO"]
-  where apiurl (JobExecutions i) = jobExecutionsUrl i
-        apiurl _          = "/"  -- TODO: tidy up, this is a hack just to make it exhaustive. Use Either instead
+
+-- | Issue a Get request against the Rundeck API reusing a session.
+-- The api endpoint is determined by the type of the 'ApiCall' made.
+getWithSession :: S.Session -> ApiCall -> Conninfo -> Params -> IO RundeckResponse
+getWithSession sess a (Conninfo h p) params = S.getWith (opts params) sess $ url h p ++ apiurl a
+
+-- | Issue a Post request against the Rundeck API reusing a given session.
+-- The api endpoint is determined by the type of the 'ApiCall' made.
+postWithSession :: S.Session -> ApiCall -> Conninfo -> Params -> IO RundeckResponse
+postWithSession sess a (Conninfo h p) params = S.postWith (opts params) sess (url h p ++ apiurl a) [W.partText "loglevel" "INFO"]
