@@ -4,19 +4,19 @@
 module Main where
 
 -- Rundeck Libraries
-import           Rundeck.Call         hiding (host, port)
+import           Rundeck.Call hiding (host, port)
 import           Rundeck.Xml
 
 -- For CLI options
 import           Options
 
-import           Control.Concurrent   (threadDelay)
+import           Control.Concurrent (threadDelay)
 import qualified Data.ByteString.Lazy as L (ByteString, fromStrict, putStr)
-import qualified Data.Text            as T
-import qualified Data.Text.Encoding   as TE
-import qualified Data.Text.IO         as TI (putStr)
-import qualified Control.Exception    as E
-import Network.HTTP.Client (HttpException(..))
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
+import qualified Data.Text.IO as TI (putStr)
+import qualified Control.Exception as E
+import           Network.HTTP.Client (HttpException(..))
 
 data MainOptions = MainOptions
     { host      :: String
