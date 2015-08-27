@@ -15,6 +15,8 @@ import qualified Data.ByteString.Lazy as L (ByteString, fromStrict, putStr)
 import qualified Data.Text            as T
 import qualified Data.Text.Encoding   as TE
 import qualified Data.Text.IO         as TI (putStr)
+import qualified Control.Exception    as E
+import Network.HTTP.Client (HttpException(..))
 
 data MainOptions = MainOptions
     { host      :: String
@@ -86,7 +88,10 @@ main = L.putStr =<< runSubcommand
     ]
 
 doGet :: ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
-doGet call mainOpts _ _ = body <$> get call (conninfo mainOpts) (params call mainOpts)
+doGet call mainOpts _ _ = E.catch (body <$> get call (conninfo mainOpts) (params call mainOpts)) handler
+  where handler (StatusCodeException{}) = return . L.fromStrict $ TE.encodeUtf8 "Status code wasn't what was expected"
+        handler (FailedConnectionException2{}) = return . L.fromStrict $ TE.encodeUtf8 "Connection failed"
+        handler e = E.throwIO e
 
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob mainOpts opts _ = withAPISession $ \sess -> postWithSession sess call (conninfo mainOpts) (params call mainOpts) >>= \r ->
@@ -117,7 +122,6 @@ executionOutput sess mainOpts opts _ = go "0"
               go safeOffset
 
         call = ExecutionOutput $ eoId opts
-
 
 -- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
 -- eoopts = ExecutionOutputOptions "15" False

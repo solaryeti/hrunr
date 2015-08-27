@@ -20,12 +20,13 @@ library
                      , Rundeck.Urls
                      , Rundeck.Xml
   build-depends:       base >= 4.7 && < 5
-                     , wreq
+                     , wreq >= 0.4
                      , bytestring
                      , lens
                      , text
                      , xml-conduit
                      , xml-types
+                     , http-client >= 0.4
   default-language:    Haskell2010
 
 executable hrunr
@@ -37,6 +38,7 @@ executable hrunr
                      , bytestring
                      , options
                      , text
+                     , http-client >= 0.4
   default-language:    Haskell2010
 
 test-suite hrunr-test
