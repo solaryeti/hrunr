@@ -111,6 +111,10 @@
 -}
 
 
+-- lstrip :: L.ByteString -> L.ByteString
+-- lstrip bs = L.dropWhile (\x -> x `elem` wschars) bs
+--   where wschars = map (fromIntegral . ord) [' ', '\r', 'n', 't']
+
 
 -- for repl
 -- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"

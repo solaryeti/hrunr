@@ -3,20 +3,25 @@
 
 module Main where
 
--- Rundeck Libraries
-import           Rundeck.Call hiding (host, port)
-import           Rundeck.Xml
-
 -- For CLI options
 import           Options
 
 import           Control.Concurrent (threadDelay)
 import qualified Control.Exception as E
+import           Control.Lens ((^.))
 import qualified Data.ByteString.Lazy as L (ByteString, fromStrict, putStr)
+import           Data.ByteString.Lazy.Char8 as LC (putStrLn, pack, append)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.Text.IO as TI (putStr)
 import           Network.HTTP.Client (HttpException(..))
+import           Network.HTTP.Types.Header (ResponseHeaders, HeaderName)
+import           Network.Wreq (statusCode, statusMessage)
+import           System.Exit
+
+-- Rundeck Libraries
+import           Rundeck.Call hiding (host, port)
+import           Rundeck.Xml
 
 data MainOptions = MainOptions
     { host      :: String
@@ -43,10 +48,13 @@ data NoSubOptions = NoSubOptions
 instance Options NoSubOptions where
   defineOptions = pure NoSubOptions
 
-data RunJobOptions = RunJobOptions { rjId :: String, rjFollow :: Bool }
+data RunJobOptions = RunJobOptions { rjId :: String
+                                   , rjName :: String
+                                   , rjFollow :: Bool }
 instance Options RunJobOptions where
   defineOptions = pure RunJobOptions
       <*> simpleOption "id" "" "Job to run"
+      <*> simpleOption "name" "" "Full name (including group) of job to run"
       <*> simpleOption "follow" False "Tail execution output"
 
 data ExecutionOutputOptions = ExecutionOutputOptions { eoId :: String, eoFollow :: Bool }
@@ -72,12 +80,20 @@ positivePred n
   | n > 0 = pred n
   | otherwise = 0
 
--- lstrip :: L.ByteString -> L.ByteString
--- lstrip bs = L.dropWhile (\x -> x `elem` wschars) bs
---   where wschars = map (fromIntegral . ord) [' ', '\r', 'n', 't']
+errorHandler :: HttpException -> L.ByteString
+errorHandler (StatusCodeException s r _) = LC.pack $ "Error: Rundeck returned status code " ++
+                                             show (s ^. statusCode) ++ " - " ++ show (s ^. statusMessage) ++
+                                             "\nWith a response of: \n" ++
+                                             show (fmap snd $ selectResponseHeaders "X-Response-Body-Start" r)
+errorHandler e = LC.pack "Error: encountered an unknown error. Full error output as follows:\n  "
+                 `LC.append` (LC.pack $ show e)
+
+selectResponseHeaders :: HeaderName -> ResponseHeaders -> ResponseHeaders
+selectResponseHeaders h = filter (\(x,_) -> x == h )
 
 main :: IO ()
-main = L.putStr =<< runSubcommand
+main = do
+  res <- E.try $ runSubcommand
     [ subcommand "system-info" $ doGet SystemInfo
     , subcommand "projects" $ doGet Projects
     , subcommand "tokens" $ doGet Tokens
@@ -85,14 +101,20 @@ main = L.putStr =<< runSubcommand
     , subcommand "export-jobs" $ doGet ExportJobs
     , subcommand "runjob" runjob
     , subcommand "execution-output" initExecutionOutput
-    ]
+    ] :: IO (Either HttpException L.ByteString)
+  case res of
+    Left e -> (LC.putStrLn $ errorHandler e) >> exitFailure
+    Right r -> L.putStr r
 
+-- | Perform a standard get request to a Rundeck API endpoint.
+-- Connections are not reused so multiple calls will each create a
+-- separate connection.
 doGet :: ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
-doGet call mainOpts _ _ = E.catch (body <$> get call (conninfo mainOpts) (params call mainOpts)) handler
-  where handler (StatusCodeException{}) = return . L.fromStrict $ TE.encodeUtf8 "Status code wasn't what was expected"
-        handler (FailedConnectionException2{}) = return . L.fromStrict $ TE.encodeUtf8 "Connection failed"
-        handler e = E.throwIO e
+doGet call mainOpts _ _ = body <$> get call (conninfo mainOpts) (params call mainOpts)
 
+-- | Trigger the run of a Rundeck job.
+-- Connections are reused so enabling the @follow@ parameter will
+-- still result in only a single connection to Rundeck.
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob mainOpts opts _ = withAPISession $ \sess -> postWithSession sess call (conninfo mainOpts) (params call mainOpts) >>= \r ->
   if rjFollow opts
@@ -101,9 +123,14 @@ runjob mainOpts opts _ = withAPISession $ \sess -> postWithSession sess call (co
   where call = JobExecutions $ rjId opts
         executionOpts b = ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True
 
+-- | Initiate tailing execution output.
+-- 'executionOutput' cannot be called without creating a session. This
+-- functions acts as a helper to 'executionOutput' by creating the
+-- needed session and then calling 'executionOutput'.
 initExecutionOutput :: MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 initExecutionOutput mainOpts opts eopts = withAPISession $ \sess -> executionOutput sess mainOpts opts eopts
 
+-- | Tail the output of a Rundeck job.
 executionOutput :: Session -> MainOptions -> ExecutionOutputOptions -> Args -> IO L.ByteString
 executionOutput sess mainOpts opts _ = go "0"
   where go offset = do
@@ -124,4 +151,10 @@ executionOutput sess mainOpts opts _ = go "0"
         call = ExecutionOutput $ eoId opts
 
 -- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
+-- mainopts = MainOptions "172.28.129.5" "8080" "gzNIaePk9jEcBqldLozZrLyreOh6dL5A" "sgm"
 -- eoopts = ExecutionOutputOptions "15" False
+-- doGet Jobs mainopts NoSubOptions [""]
+-- let r = get Jobs (conninfo mainopts) (params Jobs mainopts)
+-- cursor <- responseBodyCursor <$> body <$> r
+-- let jobs = cursor $/ element "jobs" &/ element "job"
+-- map (\x -> ((x $/ element "group" &// content),(x $/ element "name" &// content), (attribute "id" x))) jobs
