@@ -121,3 +121,6 @@
 -- eoopts = ExecutionOutputOptions "15" False
 -- Main.executionOutput RC.ExecutionOutput mainopts eoopts [""]
 -- r <- RC.executionOutput (conninfo mainopts) (params RC.ExecutionOutput mainopts) (eoId eoopts)
+
+
+-- isUUID x = length (filter ('-' ==) x) == 4 && length x == 36

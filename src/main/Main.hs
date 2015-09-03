@@ -9,7 +9,7 @@ import           Options
 import           Control.Concurrent (threadDelay)
 import qualified Control.Exception as E
 import           Control.Lens ((^.))
-import qualified Data.ByteString.Lazy as L (ByteString, fromStrict, putStr)
+import qualified Data.ByteString.Lazy as L (ByteString, fromStrict)
 import           Data.ByteString.Lazy.Char8 as LC (putStrLn, pack, append)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
@@ -100,11 +100,12 @@ main = do
     , subcommand "jobs" $ doGet Jobs
     , subcommand "export-jobs" $ doGet ExportJobs
     , subcommand "runjob" runjob
+    , subcommand "jobid" getId
     , subcommand "execution-output" initExecutionOutput
     ] :: IO (Either HttpException L.ByteString)
   case res of
-    Left e -> (LC.putStrLn $ errorHandler e) >> exitFailure
-    Right r -> L.putStr r
+    Left e -> LC.putStrLn (errorHandler e) >> exitFailure
+    Right r -> LC.putStrLn r
 
 -- | Perform a standard get request to a Rundeck API endpoint.
 -- Connections are not reused so multiple calls will each create a
@@ -112,16 +113,29 @@ main = do
 doGet :: ApiCall -> MainOptions -> NoSubOptions -> Args -> IO L.ByteString
 doGet call mainOpts _ _ = body <$> get call (conninfo mainOpts) (params call mainOpts)
 
+getId :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
+getId mainOpts opts _ = do
+    cursor <- responseBodyCursor <$> body <$> get Jobs (conninfo mainOpts) (params Jobs mainOpts)
+    case jobId cursor (T.pack $ rjId opts) of
+      Nothing -> return . LC.pack $ "Job not found: " ++ rjId opts
+      Just x  -> return . L.fromStrict $ TE.encodeUtf8 x
+
 -- | Trigger the run of a Rundeck job.
 -- Connections are reused so enabling the @follow@ parameter will
 -- still result in only a single connection to Rundeck.
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
-runjob mainOpts opts _ = withAPISession $ \sess -> postWithSession sess call (conninfo mainOpts) (params call mainOpts) >>= \r ->
-  if rjFollow opts
-    then executionOutput sess mainOpts (executionOpts $ body r) [""]
-    else return $ body r
-  where call = JobExecutions $ rjId opts
-        executionOpts b = ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True
+runjob mainOpts opts _ =  withAPISession $ \sess -> do
+    id' <- jobid sess
+    res <- postWithSession sess (JobExecutions id') (conninfo mainOpts) (params (JobExecutions id') mainOpts)
+    if rjFollow opts
+    then executionOutput sess mainOpts (executionOpts $ body res) [""]
+    else return $ body res
+  where executionOpts b = ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True
+        jobid sess = do
+          cursor <- responseBodyCursor <$> body <$> getWithSession sess Jobs (conninfo mainOpts) (params Jobs mainOpts)
+          case jobId cursor (T.pack $ rjId opts) of
+            Nothing -> return $ rjId opts
+            Just x  -> return $ T.unpack x
 
 -- | Initiate tailing execution output.
 -- 'executionOutput' cannot be called without creating a session. This
@@ -151,10 +165,10 @@ executionOutput sess mainOpts opts _ = go "0"
         call = ExecutionOutput $ eoId opts
 
 -- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
--- mainopts = MainOptions "172.28.129.5" "8080" "gzNIaePk9jEcBqldLozZrLyreOh6dL5A" "sgm"
+-- let mainopts = MainOptions "172.28.129.5" "8080" "gzNIaePk9jEcBqldLozZrLyreOh6dL5A" "sgm"
 -- eoopts = ExecutionOutputOptions "15" False
 -- doGet Jobs mainopts NoSubOptions [""]
 -- let r = get Jobs (conninfo mainopts) (params Jobs mainopts)
--- cursor <- responseBodyCursor <$> body <$> r
+-- cursor <- responseBodyCursor <$> body <$> get Jobs (conninfo mainopts) (params Jobs mainopts)
 -- let jobs = cursor $/ element "jobs" &/ element "job"
 -- map (\x -> ((x $/ element "group" &// content),(x $/ element "name" &// content), (attribute "id" x))) jobs

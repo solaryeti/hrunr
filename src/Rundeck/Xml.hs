@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Rundeck.Xml
        ( executionId
+       , jobId
        , outputContent
        , responseBodyCursor
        ) where
@@ -25,3 +26,16 @@ executionId cursor = T.concat $ cursor $/ element "execution" >=> attribute "id"
 
 responseBodyCursor :: L.ByteString -> Text.XML.Cursor.Cursor
 responseBodyCursor = fromDocument . parseText_ def . decodeUtf8
+
+-- | Get the job id of a specified job. Input is expected to be the
+-- response body of a 'Jobs' get.
+jobId :: Text.XML.Cursor.Generic.Cursor Text.XML.Node -> T.Text -> Maybe T.Text
+jobId cursor fullname = case ids of
+    [x] -> Just x
+    _   -> Nothing
+  where
+    ids = jobid <$> filter (\x -> join x == fullname || join x == T.append "/" fullname) jobs
+    jobs = cursor $/ element "jobs" &/ element "job"
+    join x = T.intercalate "/" [jobElement "group" x, jobElement "name" x]
+    jobElement e x = T.concat $ x $/ element e &// content
+    jobid = T.concat . attribute "id"
