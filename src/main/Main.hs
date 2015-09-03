@@ -84,9 +84,9 @@ errorHandler :: HttpException -> L.ByteString
 errorHandler (StatusCodeException s r _) = LC.pack $ "Error: Rundeck returned status code " ++
                                              show (s ^. statusCode) ++ " - " ++ show (s ^. statusMessage) ++
                                              "\nWith a response of: \n" ++
-                                             show (fmap snd $ selectResponseHeaders "X-Response-Body-Start" r)
+                                             show (snd <$> selectResponseHeaders "X-Response-Body-Start" r)
 errorHandler e = LC.pack "Error: encountered an unknown error. Full error output as follows:\n  "
-                 `LC.append` (LC.pack $ show e)
+                 `LC.append` LC.pack (show e)
 
 selectResponseHeaders :: HeaderName -> ResponseHeaders -> ResponseHeaders
 selectResponseHeaders h = filter (\(x,_) -> x == h )
