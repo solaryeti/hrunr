@@ -50,11 +50,15 @@ instance Options NoSubOptions where
 
 data RunJobOptions = RunJobOptions { rjId :: String
                                    , rjName :: String
-                                   , rjFollow :: Bool }
+                                   , rjArgString :: String
+                                   , rjFollow :: Bool
+                                   }
+
 instance Options RunJobOptions where
   defineOptions = pure RunJobOptions
       <*> simpleOption "id" "" "Job to run"
       <*> simpleOption "name" "" "Full name (including group) of job to run"
+      <*> simpleOption "argstring" "" "Argument string to pass to the job, of the form: -opt value -opt2 value ..."
       <*> simpleOption "follow" False "Tail execution output"
 
 data ExecutionOutputOptions = ExecutionOutputOptions { eoId :: String, eoFollow :: Bool }
@@ -126,7 +130,7 @@ getId mainOpts opts _ = do
 runjob :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 runjob mainOpts opts _ =  withAPISession $ \sess -> do
     id' <- jobid sess
-    res <- postWithSession sess (JobExecutions id') (conninfo mainOpts) (params (JobExecutions id') mainOpts)
+    res <- postWithSession sess (JobExecutions id') (conninfo mainOpts) jobparams
     if rjFollow opts
     then executionOutput sess mainOpts (executionOpts $ body res) [""]
     else return $ body res
@@ -136,6 +140,7 @@ runjob mainOpts opts _ =  withAPISession $ \sess -> do
           case jobId cursor (T.pack $ rjId opts) of
             Nothing -> return $ rjId opts
             Just x  -> return $ T.unpack x
+        jobparams = ("argString", [T.pack $ rjArgString opts]) : params (JobExecutions "") mainOpts
 
 -- | Initiate tailing execution output.
 -- 'executionOutput' cannot be called without creating a session. This
