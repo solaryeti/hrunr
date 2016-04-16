@@ -32,16 +32,14 @@ data MainOptions = MainOptions
 
 instance Options MainOptions where
   defineOptions = pure MainOptions
-    <*> simpleOption "host" "192.168.56.2" "Rundeck host"
+    <*> simpleOption "host" "127.0.0.1" "Rundeck host"
     <*> simpleOption "port" "4440" "Rundeck port"
     <*> defineOption optionType_string (\o -> o
       { optionLongFlags = ["authtoken"]
-      , optionDefault = "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk"
       , optionGroup = Just $ group "param" "Params" ""
       })
     <*> defineOption optionType_string (\o -> o
       { optionLongFlags = ["project"]
-      , optionDefault = "local"
       , optionGroup = Just $ group "param" "Params" ""
       })
 
