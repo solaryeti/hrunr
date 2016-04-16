@@ -1,14 +1,14 @@
 name:                hrunr
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            CLI to interact with Rundeck's API
 description:         Please see README.md
-homepage:            http://github.com/name/project
+homepage:            http://github.com/solaryeti/hrunr
 license:             BSD3
 license-file:        LICENSE
 author:              Steven Meunier
-maintainer:          steven@solaryeti.com
+maintainer:          code@solaryeti.com
 -- copyright:
-category:            Web
+category:            Application
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
@@ -32,7 +32,7 @@ library
 executable hrunr
   hs-source-dirs:      src/main
   main-is:             Main.hs
-  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -Werror
   build-depends:       base
                      , hrunr
                      , bytestring

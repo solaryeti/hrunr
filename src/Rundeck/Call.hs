@@ -1,13 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
--- |
--- Module      : Rundeck.Call
--- Copyright   : (c) 2015 Steven Meunier
---
--- License     : BSD-style
--- Maintainer  : steven@solaryeti.com
--- Stability   : experimental
--- Portability : GHC
+{- |
+Module      : Rundeck.Call
+Description : Helper functions for calling Rundeck's API
+Copyright   : (c) 2015 Steven Meunier
+
+License     : BSD-style (see the file LICENSE)
+Maintainer  : code@solaryeti.com
+Stability   : experimental
+Portability : GHC
+-}
 
 module Rundeck.Call
   ( -- * Types
@@ -34,10 +36,10 @@ module Rundeck.Call
 
 import           Rundeck.Urls
 
-import           Control.Lens ((&), (.~), (^.))
+import           Control.Lens         ((&), (.~), (^.))
 import qualified Data.ByteString.Lazy as L
-import           Data.Text (Text)
-import qualified Network.Wreq as W
+import           Data.Text            (Text)
+import qualified Network.Wreq         as W
 import qualified Network.Wreq.Session as S
 
 type RundeckResponse = (W.Response L.ByteString)

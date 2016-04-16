@@ -4,23 +4,23 @@
 module Main where
 
 -- Rundeck Libraries
-import           Rundeck.Call hiding (host, port)
+import           Rundeck.Call               hiding (host, port)
 import           Rundeck.Xml
 
 -- For CLI options
 import           Options
 
-import           Control.Concurrent (threadDelay)
-import qualified Control.Exception as E
-import           Control.Lens ((^.))
-import qualified Data.ByteString.Lazy as L (ByteString, fromStrict)
-import           Data.ByteString.Lazy.Char8 as LC (putStrLn, pack, append)
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
-import qualified Data.Text.IO as TI (putStr)
-import           Network.HTTP.Client (HttpException(..))
-import           Network.HTTP.Types.Header (ResponseHeaders, HeaderName)
-import           Network.Wreq (statusCode, statusMessage)
+import           Control.Concurrent         (threadDelay)
+import qualified Control.Exception          as E
+import           Control.Lens               ((^.))
+import qualified Data.ByteString.Lazy       as L (ByteString, fromStrict)
+import           Data.ByteString.Lazy.Char8 as LC (append, pack, putStrLn)
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as TE
+import qualified Data.Text.IO               as TI (putStr)
+import           Network.HTTP.Client        (HttpException (..))
+import           Network.HTTP.Types.Header  (HeaderName, ResponseHeaders)
+import           Network.Wreq               (statusCode, statusMessage)
 import           System.Exit
 
 data MainOptions = MainOptions
@@ -51,10 +51,10 @@ instance Options NoSubOptions where
   defineOptions = pure NoSubOptions
 
 data RunJobOptions = RunJobOptions
-  { rjId :: String
-  , rjName :: String
+  { rjId        :: String
+  , rjName      :: String
   , rjArgString :: String
-  , rjFollow :: Bool
+  , rjFollow    :: Bool
   }
 
 instance Options RunJobOptions where
@@ -125,7 +125,7 @@ doGet call mainOpts _ _ = body <$> get call (conninfo mainOpts) (params call mai
 
 getId :: MainOptions -> RunJobOptions -> Args -> IO L.ByteString
 getId mainOpts opts _ = do
-  cursor <- responseBodyCursor <$> body <$> get Jobs (conninfo mainOpts) (params Jobs mainOpts)
+  cursor <- responseBodyCursor . body <$> get Jobs (conninfo mainOpts) (params Jobs mainOpts)
   case jobId cursor (T.pack $ rjId opts) of
     Nothing -> (return . LC.pack) ("Job not found: " ++ rjId opts)
     Just x  -> (return . L.fromStrict . TE.encodeUtf8) x
@@ -143,7 +143,7 @@ runjob mainOpts opts _ =  withAPISession $ \sess -> do
   where
     executionOpts b = ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True
     jobid sess = do
-      cursor <- responseBodyCursor <$> body <$> getWithSession sess Jobs (conninfo mainOpts) (params Jobs mainOpts)
+      cursor <- responseBodyCursor . body <$> getWithSession sess Jobs (conninfo mainOpts) (params Jobs mainOpts)
       case jobId cursor (T.pack $ rjId opts) of
         Nothing -> return $ rjId opts
         Just x  -> return $ T.unpack x
@@ -177,12 +177,3 @@ executionOutput sess mainOpts opts _ = go "0"
                   go safeOffset
 
         call = ExecutionOutput $ eoId opts
-
--- mainopts = MainOptions "192.168.56.2" "4440" "fCg23CDrtT1uJxQsHYpCWPFoCfMEKSQk" "local"
--- let mainopts = MainOptions "172.28.129.5" "8080" "gzNIaePk9jEcBqldLozZrLyreOh6dL5A" "sgm"
--- eoopts = ExecutionOutputOptions "15" False
--- doGet Jobs mainopts NoSubOptions [""]
--- let r = get Jobs (conninfo mainopts) (params Jobs mainopts)
--- cursor <- responseBodyCursor <$> body <$> get Jobs (conninfo mainopts) (params Jobs mainopts)
--- let jobs = cursor $/ element "jobs" &/ element "job"
--- map (\x -> ((x $/ element "group" &// content),(x $/ element "name" &// content), (attribute "id" x))) jobs

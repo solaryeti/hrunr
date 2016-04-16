@@ -1,4 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
+
+{- |
+Module      : $Header$
+Description : Processing of Rundeck's XML output
+Copyright   : (c) 2016 Steven Meunier
+
+License     : BSD-style (see the file LICENSE)
+Maintainer  : code@solaryeti.com
+Stability   : experimental
+Portability : GHC
+-}
+
 module Rundeck.Xml
   ( executionId
   , jobId
@@ -6,16 +18,16 @@ module Rundeck.Xml
   , responseBodyCursor
   ) where
 
-import qualified Data.ByteString.Lazy as L
-import qualified Data.Text as T
+import qualified Data.ByteString.Lazy    as L
+import qualified Data.Text               as T
 
 -- For XML processing
 import           Data.Text.Lazy.Encoding (decodeUtf8)
-import           Data.XML.Types (Name)
-import           Text.XML (Node, def, parseText_)
-import           Text.XML.Cursor (Cursor, attribute, content, element,
-                                  fromDocument, ($/), (&/), (&//),
-                                  (>=>))
+import           Data.XML.Types          (Name)
+import           Text.XML                (Node, def, parseText_)
+import           Text.XML.Cursor         (Cursor, attribute, content, element,
+                                          fromDocument, ($/), (&/), (&//),
+                                          (>=>))
 import           Text.XML.Cursor.Generic (Cursor)
 
 outputContent :: Text.XML.Cursor.Generic.Cursor Text.XML.Node -> Data.XML.Types.Name -> T.Text

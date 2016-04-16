@@ -1,3 +1,14 @@
+{- |
+Module      : $Header$
+Description : URLs for Rundeck's API
+Copyright   : (c) 2016 Steven Meunier
+
+License     : BSD-style (see the file LICENSE)
+Maintainer  : code@solaryeti.com
+Stability   : experimental
+Portability : GHC
+-}
+
 module Rundeck.Urls
   ( exportUrl
   , importUrl
