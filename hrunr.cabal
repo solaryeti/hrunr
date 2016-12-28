@@ -30,13 +30,14 @@ library
   default-language:    Haskell2010
 
 executable hrunr
-  hs-source-dirs:      src/main
+  hs-source-dirs:      app
   main-is:             Main.hs
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N -Werror
+  other-modules  :     Hrunr.Options
   build-depends:       base
                      , hrunr
                      , bytestring
-                     , options
+                     , optparse-applicative
                      , text
                      , http-client >= 0.4
                      , http-types >= 0.8

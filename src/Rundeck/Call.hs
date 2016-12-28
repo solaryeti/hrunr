@@ -43,7 +43,7 @@ import qualified Network.Wreq         as W
 import qualified Network.Wreq.Session as S
 
 type RundeckResponse = (W.Response L.ByteString)
-type Param = (Text, [Text])
+type Param = (Text, Text)
 type Params = [Param]
 
 -- | Conninfo contains the connection info the make a connection to Rundeck
@@ -71,12 +71,7 @@ body :: W.Response a -> a
 body r = r ^. W.responseBody
 
 opts :: Params -> W.Options
-opts params = W.defaults & paramList params
-
-paramList :: Params -> W.Options -> W.Options
-paramList [] = W.param "" .~ []
-paramList [(x, xs)] = W.param x .~ xs
-paramList ((x, xs):xss) = (W.param x .~ xs) <$> paramList xss
+opts p = W.defaults & W.params .~ p
 
 apiurl :: ApiCall -> ApiUrl
 apiurl (ExecutionOutput i) = executionOutputUrl i
