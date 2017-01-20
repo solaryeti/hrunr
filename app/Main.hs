@@ -21,7 +21,8 @@ import qualified Data.Text.IO as TI (putStr)
 import           Network.HTTP.Client (HttpException(..))
 import           Network.HTTP.Types.Header (ResponseHeaders, HeaderName)
 import           Network.Wreq (statusCode, statusMessage)
-import           System.Exit
+import           System.Exit (exitFailure)
+import           System.IO (BufferMode (..), hSetBuffering, stdout)
 
 main :: IO ()
 main = execParseOptions >>= run
@@ -91,7 +92,11 @@ runjob globalOpts rjopts =  withAPISession $ \sess -> do
     id' <- jobid sess
     res <- postWithSession sess (JobExecutions id') (conninfo globalOpts) jobparams
     if rjFollow rjopts
-      then executionOutput sess globalOpts (executionOpts $ body res)
+      then do
+        -- Don't buffer output when following so that the user can see
+        -- the output immediately.
+        hSetBuffering stdout NoBuffering
+        executionOutput sess globalOpts (executionOpts $ body res)
       else return $ body res
   where
     executionOpts b = ExecutionOutputOptions (T.unpack . executionId $ responseBodyCursor b) True

@@ -1,5 +1,5 @@
 name:                hrunr
-version:             0.1.0.0
+version:             0.1.2.0
 synopsis:            CLI to interact with Rundeck's API
 description:         Please see README.md
 homepage:            http://github.com/solaryeti/hrunr
